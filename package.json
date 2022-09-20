@@ -6,7 +6,8 @@
     "next": "^12.3.1",
     "three": "^0.144.0",
     "three-msdf-text": "github:leochocolat/three-msdf-text",
-    "three-orbit-controls": "^82.1.0"
+    "three-orbit-controls": "^82.1.0",
+    "virtual-scroll": "^2.2.1"
   },
   "devDependencies": {
     "babel-plugin-transform-runtime": "^6.23.0",

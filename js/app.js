@@ -6,6 +6,7 @@ import fragment from "./shader/fragment.glsl";
 import vertex from "./shader/vertex.glsl";
 // import GUI from 'lil-gui';
 // import gsap from "gsap";
+import VirtualScroll from 'virtual-scroll'
 
 // Fonts
 import { MSDFTextGeometry, MSDFTextMaterial, uniforms } from "three-msdf-text";
@@ -29,6 +30,8 @@ const TEXT = [
 export default class Sketch {
   constructor(options) {
     this.scene = new THREE.Scene();
+    this.group = new THREE.Group();
+    this.scene.add(this.group);
 
     this.container = options.dom;
     this.width = this.container.offsetWidth;
@@ -41,18 +44,27 @@ export default class Sketch {
 
     this.container.appendChild(this.renderer.domElement);
 
+    this.position = 0;
+    this.speed = 0;
+    this.scroller = new VirtualScroll()
+    this.scroller.on(event => {
+	  // wrapper.style.transform = `translateY(${event.y}px)`
+    this.position = event.y/4000
+    this.speed = event.deltaY/2000
+    })
+
     this.camera = new THREE.PerspectiveCamera(
       70,
       window.innerWidth / window.innerHeight,
       0.001,
-      1000
+      100
     );
 
     // var frustumSize = 10;
     // var aspect = window.innerWidth / window.innerHeight;
     // this.camera = new THREE.OrthographicCamera( frustumSize * aspect / - 2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / - 2, -1000, 1000 );
     this.camera.position.set(0, 0, 2);
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    // this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.time = 0;
 
     this.dracoloader = new DRACOLoader();
@@ -172,10 +184,10 @@ export default class Sketch {
       const mesh = new THREE.Mesh(geometry, this.material);
       let s = 0.005;
       mesh.scale.set(s,-s,s)
-      mesh.position.x = -0.5;
+      mesh.position.x = -0.8;
       mesh.position.y = this.size*i;
 
-      this.scene.add(mesh)
+      this.group.add(mesh)
       })
   });
   
@@ -230,6 +242,8 @@ export default class Sketch {
     if (!this.isPlaying) return;
     this.time += 0.05;
     // this.material.uniforms.time.value = this.time;
+    this.speed *=0.9
+    this.group.position.y = -this.position;
     requestAnimationFrame(this.render.bind(this));
     this.renderer.render(this.scene, this.camera);
   }
