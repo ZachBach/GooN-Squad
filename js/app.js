@@ -1,7 +1,16 @@
 import * as THREE from "three";
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import fragment from "./shader/fragment.glsl";
 import vertex from "./shader/vertex.glsl";
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+// import GUI from 'lil-gui';
+// import gsap from "gsap";
+
+// Fonts
+import { MSDFTextGeometry, MSDFTextMaterial } from "three-msdf-text";
+import fnt from '../font/Wrong-Delivery-msdf.json'
+import atlasURL from '../font/Wrong-Delivery-msdf.png'
 
 export default class Sketch {
   constructor(options) {
@@ -32,6 +41,11 @@ export default class Sketch {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.time = 0;
 
+    this.dracoloader = new DRACOLoader();
+    this.dracoloader.setDecoderPath('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/js/libs/dracos/')
+    this.gltf = new GLTFLoader();
+    this.gltf.setDRACOLoader(this.dracoloader);
+
     this.isPlaying = true;
     
     this.addObjects();
@@ -59,8 +73,13 @@ export default class Sketch {
     this.height = this.container.offsetHeight;
     this.renderer.setSize(this.width, this.height);
     this.camera.aspect = this.width / this.height;
+
+    this.imageAspect = 853/1280;
+
     this.camera.updateProjectionMatrix();
   }
+
+  
 
   addObjects() {
     let that = this;
