@@ -8,9 +8,23 @@ import vertex from "./shader/vertex.glsl";
 // import gsap from "gsap";
 
 // Fonts
-import { MSDFTextGeometry, MSDFTextMaterial } from "three-msdf-text";
-import fnt from '../font/Wrong-Delivery-msdf.json'
-import atlasURL from '../font/Wrong-Delivery-msdf.png'
+import { MSDFTextGeometry, MSDFTextMaterial, uniforms } from "three-msdf-text";
+import fnt from '../font/zookahs-msdf.json';
+import atlasURL from '../font/zookahs.png';
+
+
+const TEXT = [
+  'ZooKaH',
+  'fayze',
+  'MATTAKAICEMAN',
+  'The Treemiester',
+  'DAFFODILRAT',
+  'Reddshinobi',
+  'QUBX',
+  'STLfromHell67',
+
+
+].reverse();
 
 export default class Sketch {
   constructor(options) {
@@ -48,10 +62,11 @@ export default class Sketch {
 
     this.isPlaying = true;
     
-    this.addObjects();
+    // this.addObjects();
     this.resize();
     this.render();
     this.setupResize();
+    this.addTexts();
     // this.settings();
   }
 
@@ -79,33 +94,126 @@ export default class Sketch {
     this.camera.updateProjectionMatrix();
   }
 
-  
+  addTexts() {
 
-  addObjects() {
-    let that = this;
     this.material = new THREE.ShaderMaterial({
-      extensions: {
-        derivatives: "#extension GL_OES_standard_derivatives : enable"
-      },
       side: THREE.DoubleSide,
-      uniforms: {
-        time: { type: "f", value: 0 },
-        resolution: { type: "v4", value: new THREE.Vector4() },
-        uvRate1: {
-          value: new THREE.Vector2(1, 1)
-        }
+      transparent: true,
+      defines: {
+          IS_SMALL: false,
       },
-      // wireframe: true,
-      // transparent: true,
-      vertexShader: vertex,
-      fragmentShader: fragment
-    });
+      extensions: {
+          derivatives: true,
+      },
+      uniforms: {
+          // Common
+          ...uniforms.common,
+          
+          // Rendering
+          ...uniforms.rendering,
+          
+          // Strokes
+          ...uniforms.strokes,
+      },
+      vertexShader: `
+          // Attribute
+          #include <three_msdf_attributes>
+  
+          // Varyings
+          #include <three_msdf_varyings>
+  
+          void main() {
+              #include <three_msdf_vertex>
+          }
+      `,
+      fragmentShader: `
+          // Varyings
+          #include <three_msdf_varyings>
+  
+          // Uniforms
+          #include <three_msdf_common_uniforms>
+          #include <three_msdf_strokes_uniforms>
+  
+          // Utils
+          #include <three_msdf_median>
+  
+          void main() {
+              // Common
+              #include <three_msdf_common>
+  
+              // Strokes
+              #include <three_msdf_strokes>
+  
+              // Alpha Test
+              #include <three_msdf_alpha_test>
+  
+              // Outputs
+              #include <three_msdf_strokes_output>
 
-    this.geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+              gl_FragColor = vec4(1.,0.,0.,1.);
+          }
+      `,
+  });
 
-    this.plane = new THREE.Mesh(this.geometry, this.material);
-    this.scene.add(this.plane);
+
+    Promise.all([
+      loadFontAtlas(atlasURL),
+  ]).then(([atlas]) => {
+
+      this.size = 0.2
+      this.material.uniforms.uMap.value = atlas;
+      // Create new geometry for text array
+      TEXT.forEach((text, i) => {
+        const geometry = new MSDFTextGeometry({
+          text: text.toLocaleUpperCase(),
+          font: fnt
+      });
+
+      const mesh = new THREE.Mesh(geometry, this.material);
+      let s = 0.005;
+      mesh.scale.set(s,-s,s)
+      mesh.position.x = -0.5;
+      mesh.position.y = this.size*i;
+
+      this.scene.add(mesh)
+      })
+  });
+  
+  function loadFontAtlas(path) {
+      const promise = new Promise((resolve, reject) => {
+          const loader = new THREE.TextureLoader();
+          loader.load(path, resolve);
+      });
+  
+      return promise;
+    }
   }
+
+  // addObjects() {
+  //   let that = this;
+  //   this.material = new THREE.ShaderMaterial({
+  //     extensions: {
+  //       derivatives: "#extension GL_OES_standard_derivatives : enable"
+  //     },
+  //     side: THREE.DoubleSide,
+  //     uniforms: {
+  //       time: { type: "f", value: 0 },
+  //       resolution: { type: "v4", value: new THREE.Vector4() },
+  //       uvRate1: {
+  //         value: new THREE.Vector2(1, 1)
+  //       }
+  //     },
+  //     // wireframe: true,
+  //     // transparent: true,
+  //     vertexShader: vertex,
+  //     fragmentShader: fragment
+  //   });
+
+  //   this.geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+
+  //   this.plane = new THREE.Mesh(this.geometry, this.material);
+  //   this.scene.add(this.plane);
+  // }
 
   stop() {
     this.isPlaying = false;
@@ -121,7 +229,7 @@ export default class Sketch {
   render() {
     if (!this.isPlaying) return;
     this.time += 0.05;
-    this.material.uniforms.time.value = this.time;
+    // this.material.uniforms.time.value = this.time;
     requestAnimationFrame(this.render.bind(this));
     this.renderer.render(this.scene, this.camera);
   }
