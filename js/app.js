@@ -12,6 +12,20 @@ import { MSDFTextGeometry, MSDFTextMaterial, uniforms } from "three-msdf-text";
 import fnt from '../font/zookahs-msdf.json';
 import atlasURL from '../font/zookahs.png';
 
+
+const TEXT = [
+  'ZooKaH',
+  'fayze',
+  'MATTAKAICEMAN',
+  'The Treemiester',
+  'DAFFODILRAT',
+  'Reddshinobi',
+  'QUBX',
+  'STLfromHell67',
+
+
+].reverse();
+
 export default class Sketch {
   constructor(options) {
     this.scene = new THREE.Scene();
@@ -19,8 +33,10 @@ export default class Sketch {
     this.container = options.dom;
     this.width = this.container.offsetWidth;
     this.height = this.container.offsetHeight;
-    this.renderer = new THREE.WebGLRenderer();
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: true,
+    });
+    this.renderer.setPixelRatio(window.devicePixelRatio, 2);
     this.renderer.setSize(this.width, this.height);
     this.renderer.setClearColor(0xeeeeee, 1); 
     this.renderer.outputEncoding = THREE.sRGBEncoding;
@@ -80,81 +96,95 @@ export default class Sketch {
   }
 
   addTexts() {
-      Promise.all([
-      loadFontAtlas(atlasURL),
-    ]).then(([atlas]) => {
-        const geometry = new MSDFTextGeometry({
-            text: "Hello World".toUpperCase(),
+    this.material = new THREE.ShaderMaterial({
+      side: THREE.DoubleSide,
+      transparent: true,
+      defines: {
+          IS_SMALL: false,
+      },
+      extensions: {
+          derivatives: true,
+      },
+      uniforms: {
+          // Common
+          ...uniforms.common,
+          
+          // Rendering
+          ...uniforms.rendering,
+          
+          // Strokes
+          ...uniforms.strokes,
+      },
+      vertexShader: `
+          // Attribute
+          #include <three_msdf_attributes>
+  
+          // Varyings
+          #include <three_msdf_varyings>
+  
+          void main() {
+              #include <three_msdf_vertex>
+          }
+      `,
+      fragmentShader: `
+          // Varyings
+          #include <three_msdf_varyings>
+  
+          // Uniforms
+          #include <three_msdf_common_uniforms>
+          #include <three_msdf_strokes_uniforms>
+  
+          // Utils
+          #include <three_msdf_median>
+  
+          void main() {
+              // Common
+              #include <three_msdf_common>
+  
+              // Strokes
+              #include <three_msdf_strokes>
+  
+              // Alpha Test
+              #include <three_msdf_alpha_test>
+  
+              // Outputs
+              #include <three_msdf_strokes_output>
+
+
+              gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+          }
+      `,
+  });
+
+  // start of promise for three-msdf-text
+
+      Promise.all([loadFontAtlas(atlasURL),]).then(([atlas]) => {
+
+        this.size = 0.2;
+
+        this.material.uniforms.uMap.value = atlas;
+        TEXT.forEach((text, i) => { 
+            const geometry = new MSDFTextGeometry({
+            text: text.toUpperCase(),
             font: fnt,
         });
+      
     
-        this.material = new THREE.ShaderMaterial({
-          side: THREE.DoubleSide,
-          transparent: true,
-          defines: {
-              IS_SMALL: false,
-          },
-          extensions: {
-              derivatives: true,
-          },
-          uniforms: {
-              // Common
-              ...uniforms.common,
-              
-              // Rendering
-              ...uniforms.rendering,
-              
-              // Strokes
-              ...uniforms.strokes,
-          },
-          vertexShader: `
-              // Attribute
-              #include <three_msdf_attributes>
-      
-              // Varyings
-              #include <three_msdf_varyings>
-      
-              void main() {
-                  #include <three_msdf_vertex>
-              }
-          `,
-          fragmentShader: `
-              // Varyings
-              #include <three_msdf_varyings>
-      
-              // Uniforms
-              #include <three_msdf_common_uniforms>
-              #include <three_msdf_strokes_uniforms>
-      
-              // Utils
-              #include <three_msdf_median>
-      
-              void main() {
-                  // Common
-                  #include <three_msdf_common>
-      
-                  // Strokes
-                  #include <three_msdf_strokes>
-      
-                  // Alpha Test
-                  #include <three_msdf_alpha_test>
-      
-                  // Outputs
-                  #include <three_msdf_strokes_output>
-              }
-          `,
-      });
-        
-
       this.material.uniforms.uMap.value = atlas;
     
       const mesh = new THREE.Mesh(geometry, this.material);
 
       let s = 0.005;
       mesh.scale.set(s, -s, s);
-      this.scene.add(mesh);
       mesh.position.x = -0.5;
+      mesh.position.y = this.size*i;
+      
+
+
+      this.scene.add(mesh);
     });
+
+  });
   
       function loadFontAtlas(path) {
       const promise = new Promise((resolve, reject) => {
