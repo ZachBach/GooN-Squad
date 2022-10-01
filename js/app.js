@@ -8,7 +8,7 @@ import vertex from "./shader/vertex.glsl";
 // import gsap from "gsap";
 
 // Fonts
-import { MSDFTextGeometry, MSDFTextMaterial } from "three-msdf-text";
+import { MSDFTextGeometry, MSDFTextMaterial, uniforms } from "three-msdf-text";
 import fnt from '../font/zookahs-msdf.json';
 import atlasURL from '../font/zookahs.png';
 
@@ -34,9 +34,6 @@ export default class Sketch {
       1000
     );
 
-    // var frustumSize = 10;
-    // var aspect = window.innerWidth / window.innerHeight;
-    // this.camera = new THREE.OrthographicCamera( frustumSize * aspect / - 2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / - 2, -1000, 1000 );
     this.camera.position.set(0, 0, 2);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.time = 0;
@@ -48,7 +45,8 @@ export default class Sketch {
 
     this.isPlaying = true;
     
-    this.addObjects();
+    // this.addObjects();
+    this.addTexts();
     this.resize();
     this.render();
     this.setupResize();
@@ -69,43 +67,130 @@ export default class Sketch {
   }
 
   resize() {
-    this.width = this.container.offsetWidth;
-    this.height = this.container.offsetHeight;
-    this.renderer.setSize(this.width, this.height);
-    this.camera.aspect = this.width / this.height;
-
     this.imageAspect = 853/1280;
+    let a1; let a2;
+    
+
+    // this.material.uniforms.resolution.value.x = this.width;
+    // this.material.uniforms.resolution.value.y = this.height;
+    // this.material.uniforms.resolution.value.z = a1;
+    // this.material.uniforms.resolution.value.w = a2;
 
     this.camera.updateProjectionMatrix();
   }
 
-  
+  addTexts() {
+      Promise.all([
+      loadFontAtlas(atlasURL),
+    ]).then(([atlas]) => {
+        const geometry = new MSDFTextGeometry({
+            text: "Hello World".toUpperCase(),
+            font: fnt,
+        });
+    
+        this.material = new THREE.ShaderMaterial({
+          side: THREE.DoubleSide,
+          transparent: true,
+          defines: {
+              IS_SMALL: false,
+          },
+          extensions: {
+              derivatives: true,
+          },
+          uniforms: {
+              // Common
+              ...uniforms.common,
+              
+              // Rendering
+              ...uniforms.rendering,
+              
+              // Strokes
+              ...uniforms.strokes,
+          },
+          vertexShader: `
+              // Attribute
+              #include <three_msdf_attributes>
+      
+              // Varyings
+              #include <three_msdf_varyings>
+      
+              void main() {
+                  #include <three_msdf_vertex>
+              }
+          `,
+          fragmentShader: `
+              // Varyings
+              #include <three_msdf_varyings>
+      
+              // Uniforms
+              #include <three_msdf_common_uniforms>
+              #include <three_msdf_strokes_uniforms>
+      
+              // Utils
+              #include <three_msdf_median>
+      
+              void main() {
+                  // Common
+                  #include <three_msdf_common>
+      
+                  // Strokes
+                  #include <three_msdf_strokes>
+      
+                  // Alpha Test
+                  #include <three_msdf_alpha_test>
+      
+                  // Outputs
+                  #include <three_msdf_strokes_output>
+              }
+          `,
+      });
+        
 
-  addObjects() {
-    let that = this;
-    this.material = new THREE.ShaderMaterial({
-      extensions: {
-        derivatives: "#extension GL_OES_standard_derivatives : enable"
-      },
-      side: THREE.DoubleSide,
-      uniforms: {
-        time: { type: "f", value: 0 },
-        resolution: { type: "v4", value: new THREE.Vector4() },
-        uvRate1: {
-          value: new THREE.Vector2(1, 1)
-        }
-      },
-      // wireframe: true,
-      // transparent: true,
-      vertexShader: vertex,
-      fragmentShader: fragment
+      this.material.uniforms.uMap.value = atlas;
+    
+      const mesh = new THREE.Mesh(geometry, this.material);
+
+      let s = 0.005;
+      mesh.scale.set(s, -s, s);
+      this.scene.add(mesh);
+      mesh.position.x = -0.5;
     });
-
-    this.geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
-
-    this.plane = new THREE.Mesh(this.geometry, this.material);
-    this.scene.add(this.plane);
+  
+      function loadFontAtlas(path) {
+      const promise = new Promise((resolve, reject) => {
+          const loader = new THREE.TextureLoader();
+          loader.load(path, resolve);
+      });
+  
+      return promise;
+    }
   }
+
+  // addObjects() {
+  //   let that = this;
+  //   this.material = new THREE.ShaderMaterial({
+  //     extensions: {
+  //       derivatives: "#extension GL_OES_standard_derivatives : enable"
+  //     },
+  //     side: THREE.DoubleSide,
+  //     uniforms: {
+  //       time: { type: "f", value: 0 },
+  //       resolution: { type: "v4", value: new THREE.Vector4() },
+  //       uvRate1: {
+  //         value: new THREE.Vector2(1, 1)
+  //       }
+  //     },
+  //     // wireframe: true,
+  //     // transparent: true,
+  //     vertexShader: vertex,
+  //     fragmentShader: fragment
+  //   });
+
+  //   this.geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+
+  //   this.plane = new THREE.Mesh(this.geometry, this.material);
+  //   this.scene.add(this.plane);
+  // }
 
   stop() {
     this.isPlaying = false;
@@ -121,7 +206,6 @@ export default class Sketch {
   render() {
     if (!this.isPlaying) return;
     this.time += 0.05;
-    this.material.uniforms.time.value = this.time;
     requestAnimationFrame(this.render.bind(this));
     this.renderer.render(this.scene, this.camera);
   }
