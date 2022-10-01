@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+// import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import fragment from "./shader/fragment.glsl";
@@ -34,6 +34,9 @@ export default class Sketch {
     this.groupPlane = new THREE.Group();
     this.scene.add(this.group);
     this.scene.add(this.groupPlane);
+
+    this.textures = [...document.querySelectorAll('.texture')];
+    this.textures = this.textures.map(t => { return new THREE.TextureLoader().load(t.src)});
 
     this.container = options.dom;
     this.width = this.container.offsetWidth;
@@ -217,7 +220,7 @@ export default class Sketch {
               #include <three_msdf_strokes_output>
 
 
-              gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+              gl_FragColor = vec4(vLayoutUv, 0.0, 1.0);
           }
       `,
   });
@@ -271,6 +274,7 @@ export default class Sketch {
       side: THREE.DoubleSide,
       uniforms: {
         time: { type: "f", value: 0 },
+        uTexture : { value: this.textures[0] },
         resolution: { type: "v4", value: new THREE.Vector4() },
         uvRate1: {
           value: new THREE.Vector2(1, 1)
@@ -282,10 +286,25 @@ export default class Sketch {
       fragmentShader: fragment
     });
 
-    this.geometry = new THREE.PlaneGeometry(1.77, 1, 1, 1).translate(0, 0, 1);
+    this.geometry = new THREE.PlaneGeometry(1.77/3, 1/3, 30, 30).translate(0, 0, 1);
+    let pos = this.geometry.attributes.position.array;
+    let newpos = []
+    let r = 1.3
+
+    for(let i = 0; i < pos.length; i+=3) {
+      let x = pos[i];
+      let y = pos[i+1];
+      let z = pos[i+2];
+
+      let xz = new THREE.Vector2(x, z).normalize().multiplyScalar(r)
+
+      newpos.push(xz.x, y, xz.y);
+    }
+
+    this.geometry.setAttribute('position', new THREE.Float32BufferAttribute(newpos, 3));
 
     this.plane = new THREE.Mesh(this.geometry, this.planematerial);
-    this.scene.add(this.plane);
+    this.groupPlane.add(this.plane);
   }
 
   stop() {
@@ -306,6 +325,7 @@ export default class Sketch {
     this.targetSpeed += (this.speed-this.targetSpeed)*0.1
     this.material.uniforms.uSpeed.value = this.targetSpeed;
     this.group.position.y = -this.position;
+    this.plane.rotation.y = this.position;
     requestAnimationFrame(this.render.bind(this));
     this.renderer.render(this.scene, this.camera);
   }
