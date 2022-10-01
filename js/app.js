@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import fragment from "./shader/fragment.glsl";
 import vertex from "./shader/vertex.glsl";
+import VirtualScroll from 'virtual-scroll';
 // import GUI from 'lil-gui';
 // import gsap from "gsap";
 
@@ -29,6 +30,10 @@ const TEXT = [
 export default class Sketch {
   constructor(options) {
     this.scene = new THREE.Scene();
+    this.group = new THREE.Group();
+    this.groupPlane = new THREE.Group();
+    this.scene.add(this.group);
+    this.scene.add(this.groupPlane);
 
     this.container = options.dom;
     this.width = this.container.offsetWidth;
@@ -43,6 +48,17 @@ export default class Sketch {
 
     this.container.appendChild(this.renderer.domElement);
 
+    // scroller values and speed of scroll
+    this.position = 0
+    this.speed = 0
+    this.targetSpeed = 0
+    this.scroller = new VirtualScroll()
+    this.scroller.on(event => {
+	    // wrapper.style.transform = `translateY(${event.y}px)`
+      this.position = event.y/2000
+      this.speed = event.deltaY/1000
+    });
+
     this.camera = new THREE.PerspectiveCamera(
       70,
       window.innerWidth / window.innerHeight,
@@ -51,7 +67,7 @@ export default class Sketch {
     );
 
     this.camera.position.set(0, 0, 2);
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    // this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.time = 0;
 
     this.dracoloader = new DRACOLoader();
@@ -61,7 +77,7 @@ export default class Sketch {
 
     this.isPlaying = true;
     
-    // this.addObjects();
+    this.addObjects();
     this.addTexts();
     this.resize();
     this.render();
@@ -106,6 +122,7 @@ export default class Sketch {
           derivatives: true,
       },
       uniforms: {
+        uSpeed : { value: 0 },
           // Common
           ...uniforms.common,
           
@@ -121,9 +138,58 @@ export default class Sketch {
   
           // Varyings
           #include <three_msdf_varyings>
+          
+
+          mat4 rotationMatrix(vec3 axis, float angle) {
+            axis = normalize(axis);
+            float s = sin(angle);
+            float c = cos(angle);
+            float oc = 1.0 - c;
+            
+            return mat4(oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,  0.0,
+                        oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,  0.0,
+                        oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c,           0.0,
+                        0.0,                                0.0,                                0.0,                                1.0);
+          }
+        
+          vec3 rotate(vec3 v, vec3 axis, float angle) {
+          mat4 m = rotationMatrix(axis, angle);
+          return (m * vec4(v, 1.0)).xyz;
+          } 
+
+          uniform float uSpeed;
   
           void main() {
-              #include <three_msdf_vertex>
+
+
+            // Varyings
+            vUv = uv;
+            vLayoutUv = layoutUv;
+            vNormal = normal;
+            
+            vLineIndex = lineIndex;
+            
+            vLineLettersTotal = lineLettersTotal;
+            vLineLetterIndex = lineLetterIndex;
+            
+            vLineWordsTotal = lineWordsTotal;
+            vLineWordIndex = lineWordIndex;
+            
+            vWordIndex = wordIndex;
+            
+            vLetterIndex = letterIndex;
+
+            // Output
+            vec3 newpos = position;
+
+            float xx = position.x*.005;
+            newpos = rotate(newpos, vec3(.0, 0.0, 1.0), uSpeed*xx*xx*xx);
+
+            vec4 mvPosition = vec4(newpos, 1.0);
+            mvPosition = modelViewMatrix * mvPosition;
+            gl_Position = projectionMatrix * mvPosition;
+
+            vViewPosition = -mvPosition.xyz;
           }
       `,
       fragmentShader: `
@@ -176,12 +242,12 @@ export default class Sketch {
 
       let s = 0.005;
       mesh.scale.set(s, -s, s);
-      mesh.position.x = -0.5;
+      mesh.position.x = -0.9;
       mesh.position.y = this.size*i;
       
 
 
-      this.scene.add(mesh);
+      this.group.add(mesh);
     });
 
   });
@@ -196,31 +262,31 @@ export default class Sketch {
     }
   }
 
-  // addObjects() {
-  //   let that = this;
-  //   this.material = new THREE.ShaderMaterial({
-  //     extensions: {
-  //       derivatives: "#extension GL_OES_standard_derivatives : enable"
-  //     },
-  //     side: THREE.DoubleSide,
-  //     uniforms: {
-  //       time: { type: "f", value: 0 },
-  //       resolution: { type: "v4", value: new THREE.Vector4() },
-  //       uvRate1: {
-  //         value: new THREE.Vector2(1, 1)
-  //       }
-  //     },
-  //     // wireframe: true,
-  //     // transparent: true,
-  //     vertexShader: vertex,
-  //     fragmentShader: fragment
-  //   });
+  addObjects() {
+    let that = this;
+    this.planematerial = new THREE.ShaderMaterial({
+      extensions: {
+        derivatives: "#extension GL_OES_standard_derivatives : enable"
+      },
+      side: THREE.DoubleSide,
+      uniforms: {
+        time: { type: "f", value: 0 },
+        resolution: { type: "v4", value: new THREE.Vector4() },
+        uvRate1: {
+          value: new THREE.Vector2(1, 1)
+        }
+      },
+      // wireframe: true,
+      // transparent: true,
+      vertexShader: vertex,
+      fragmentShader: fragment
+    });
 
-  //   this.geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+    this.geometry = new THREE.PlaneGeometry(1.77, 1, 1, 1).translate(0, 0, 1);
 
-  //   this.plane = new THREE.Mesh(this.geometry, this.material);
-  //   this.scene.add(this.plane);
-  // }
+    this.plane = new THREE.Mesh(this.geometry, this.planematerial);
+    this.scene.add(this.plane);
+  }
 
   stop() {
     this.isPlaying = false;
@@ -236,6 +302,10 @@ export default class Sketch {
   render() {
     if (!this.isPlaying) return;
     this.time += 0.05;
+    this.speed *= 0.9
+    this.targetSpeed += (this.speed-this.targetSpeed)*0.1
+    this.material.uniforms.uSpeed.value = this.targetSpeed;
+    this.group.position.y = -this.position;
     requestAnimationFrame(this.render.bind(this));
     this.renderer.render(this.scene, this.camera);
   }
