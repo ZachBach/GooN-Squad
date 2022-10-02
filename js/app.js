@@ -15,21 +15,25 @@ import atlasURL from '../font/zookahs.png';
 
 
 const TEXT = [
-  'ZooKaH',
   'fayze',
   'MATTAKAICEMAN',
   'The Treemiester',
-  'DAFFODILRAT',
   'Reddshinobi',
+  'DAFFODILRAT',
+  'ZooKaH',
   'QUBX',
   'STLfromHell67',
-
+  'riskyumbrella',
+  'synistr_motives'
 
 ].reverse();
 
 export default class Sketch {
   constructor(options) {
     this.scene = new THREE.Scene();
+    this.sceneCopy = new THREE.Scene();
+    this.groupCopy = new THREE.Group();
+    this.sceneCopy.add(this.groupCopy);
     this.group = new THREE.Group();
     this.groupPlane = new THREE.Group();
     this.scene.add(this.group);
@@ -43,7 +47,9 @@ export default class Sketch {
     this.height = this.container.offsetHeight;
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
+      alpha: true
     });
+    this.renderer.autoClear = false;
     this.renderer.setPixelRatio(window.devicePixelRatio, 2);
     this.renderer.setSize(this.width, this.height);
     this.renderer.setClearColor(0xeeeeee, 1); 
@@ -57,9 +63,8 @@ export default class Sketch {
     this.targetSpeed = 0
     this.scroller = new VirtualScroll()
     this.scroller.on(event => {
-	    // wrapper.style.transform = `translateY(${event.y}px)`
-      this.position = event.y/2000
-      this.speed = event.deltaY/1000
+      this.position = event.y/3000
+      this.speed = event.deltaY/2000
     });
 
     this.camera = new THREE.PerspectiveCamera(
@@ -112,6 +117,15 @@ export default class Sketch {
     // this.material.uniforms.resolution.value.w = a2;
 
     this.camera.updateProjectionMatrix();
+  }
+
+  addLights() {
+    const light1 = new THREE.AmbientLight(0xffffff, 0.5);
+    this.scene.add(light1);
+
+    const light2 = new THREE.DirectionalLight(0xffffff, 0.5);
+    light2.position.set(0, 0, 1);
+    this.sceneCopy.add(light2);
   }
 
   addTexts() {
@@ -185,7 +199,7 @@ export default class Sketch {
             // Output
             vec3 newpos = position;
 
-            float xx = position.x*.005;
+            float xx = position.x*.004;
             newpos = rotate(newpos, vec3(.0, 0.0, 1.0), uSpeed*xx*xx*xx);
 
             vec4 mvPosition = vec4(newpos, 1.0);
@@ -220,7 +234,7 @@ export default class Sketch {
               #include <three_msdf_strokes_output>
 
 
-              gl_FragColor = vec4(vLayoutUv, 0.0, 1.0);
+              gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
           }
       `,
   });
@@ -243,7 +257,7 @@ export default class Sketch {
     
       const mesh = new THREE.Mesh(geometry, this.material);
 
-      let s = 0.005;
+      let s = 0.006;
       mesh.scale.set(s, -s, s);
       mesh.position.x = -0.9;
       mesh.position.y = this.size*i;
@@ -251,6 +265,7 @@ export default class Sketch {
 
 
       this.group.add(mesh);
+      this.groupCopy.add(mesh.clone());
     });
 
   });
@@ -286,10 +301,10 @@ export default class Sketch {
       fragmentShader: fragment
     });
 
-    this.geometry = new THREE.PlaneGeometry(1.77/3, 1/3, 30, 30).translate(0, 0, 1);
+    this.geometry = new THREE.PlaneGeometry(1.77/2, 1/2, 30, 30).translate(0, 0, 1);
     let pos = this.geometry.attributes.position.array;
     let newpos = []
-    let r = 1.3
+    let r = 1.77/1.5;
 
     for(let i = 0; i < pos.length; i+=3) {
       let x = pos[i];
@@ -298,9 +313,19 @@ export default class Sketch {
 
       let xz = new THREE.Vector2(x, z).normalize().multiplyScalar(r)
 
-      newpos.push(xz.x, y, xz.y);
+
+      let xyz = new THREE.Vector3(x, y, z).normalize().multiplyScalar(r)
+
+
+
+      newpos.push(xyz.x, xyz.y, xyz.z);
     }
 
+    let spheremesh =  new THREE.Mesh(
+      new THREE.SphereGeometry(r, 32, 32),
+      new THREE.MeshBasicMaterial({wireframe: true, color: 0xff0000, transparent: true, opacity: 0.1})
+    )
+    this.scene.add(spheremesh)
     this.geometry.setAttribute('position', new THREE.Float32BufferAttribute(newpos, 3));
 
     this.plane = new THREE.Mesh(this.geometry, this.planematerial);
@@ -318,16 +343,40 @@ export default class Sketch {
     }
   }
 
+  updateTextures() {
+    let index = Math.round(this.position + 10000) % this.textures.length;
+
+    this.planematerial.uniforms.uTexture.value = this.textures[index];
+
+    this.groupCopy.children.forEach((mesh, i) => {
+      if(i !== index) {
+        mesh.visible = false;
+      } else {
+        mesh.visible = true;
+      }     
+  });
+}    
+
+
   render() {
     if (!this.isPlaying) return;
+    this.updateTextures();
     this.time += 0.05;
     this.speed *= 0.9
     this.targetSpeed += (this.speed-this.targetSpeed)*0.1
     this.material.uniforms.uSpeed.value = this.targetSpeed;
-    this.group.position.y = -this.position;
-    this.plane.rotation.y = this.position;
+
+    // text group y positioning
+    this.group.position.y = -this.position*this.size - .8;
+    this.groupCopy.position.y = -this.position*this.size  - .8;
+
+
+    this.plane.rotation.y = this.position*2*Math.PI;
+    this.groupPlane.rotation.z = 0.0*Math.sin(this.position*0.5);
     requestAnimationFrame(this.render.bind(this));
     this.renderer.render(this.scene, this.camera);
+    this.renderer.clearDepth();
+    this.renderer.render(this.sceneCopy, this.camera);
   }
 }
 
