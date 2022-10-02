@@ -15,16 +15,16 @@ import atlasURL from '../font/zookahs.png';
 
 
 const TEXT = [
+  'synistr_motives',
+  'STLfromHell67',
+  'Reddshinobi',
+  'riskyumbrella',
+  'DAFFODILRAT',
   'fayze',
   'MATTAKAICEMAN',
-  'The Treemiester',
-  'Reddshinobi',
-  'DAFFODILRAT',
-  'ZooKaH',
   'QUBX',
-  'STLfromHell67',
-  'riskyumbrella',
-  'synistr_motives'
+  'The Treemiester',
+  'ZooKaH',
 
 ].reverse();
 
@@ -63,8 +63,8 @@ export default class Sketch {
     this.targetSpeed = 0
     this.scroller = new VirtualScroll()
     this.scroller.on(event => {
-      this.position = event.y/3000
-      this.speed = event.deltaY/2000
+      this.position = - event.y/3000
+      this.speed = - event.deltaY/2000
     });
 
     this.camera = new THREE.PerspectiveCamera(
@@ -74,7 +74,7 @@ export default class Sketch {
       1000
     );
 
-    this.camera.position.set(0, 0, 2);
+    this.camera.position.set(0, 0, 2.5);
     // this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.time = 0;
 
@@ -234,7 +234,7 @@ export default class Sketch {
               #include <three_msdf_strokes_output>
 
 
-              gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+              gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
           }
       `,
   });
@@ -304,14 +304,14 @@ export default class Sketch {
     this.geometry = new THREE.PlaneGeometry(1.77/2, 1/2, 30, 30).translate(0, 0, 1);
     let pos = this.geometry.attributes.position.array;
     let newpos = []
-    let r = 1.77/1.5;
+    let r = 1.5;
 
     for(let i = 0; i < pos.length; i+=3) {
       let x = pos[i];
       let y = pos[i+1];
       let z = pos[i+2];
 
-      let xz = new THREE.Vector2(x, z).normalize().multiplyScalar(r)
+      // let xz = new THREE.Vector2(x, z).normalize().multiplyScalar(r)
 
 
       let xyz = new THREE.Vector3(x, y, z).normalize().multiplyScalar(r)
@@ -367,8 +367,8 @@ export default class Sketch {
     this.material.uniforms.uSpeed.value = this.targetSpeed;
 
     // text group y positioning
-    this.group.position.y = -this.position*this.size - .8;
-    this.groupCopy.position.y = -this.position*this.size  - .8;
+    this.group.position.y = -this.position*this.size + .1;
+    this.groupCopy.position.y = -this.position*this.size +  .1;
 
 
     this.plane.rotation.y = this.position*2*Math.PI;
