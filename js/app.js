@@ -73,6 +73,7 @@ export default class Sketch {
       0.001,
       1000
     );
+      // random commit for save point
 
     this.camera.position.set(0, 0, 2.5);
     // this.controls = new OrbitControls(this.camera, this.renderer.domElement);
