@@ -108,15 +108,14 @@ export default class Sketch {
   }
 
   resize() {
-    this.imageAspect = 853/1280;
-    let a1; let a2;
-    
+    this.width = this.container.offsetWidth;
+    this.height = this.container.offsetHeight;
+    this.renderer.setSize(this.width, this.height);
 
-    // this.material.uniforms.resolution.value.x = this.width;
-    // this.material.uniforms.resolution.value.y = this.height;
-    // this.material.uniforms.resolution.value.z = a1;
-    // this.material.uniforms.resolution.value.w = a2;
-
+    const aspect = this.width / this.height;
+    this.camera.aspect = aspect;
+    // pull camera back on portrait/narrow screens so text fits horizontally
+    this.camera.position.z = aspect < 1 ? 2.5 / aspect : 2.5;
     this.camera.updateProjectionMatrix();
   }
 
