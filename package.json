@@ -1,10 +1,8 @@
 {
   "dependencies": {
-    "@netlify/plugin-nextjs": "^4.23.3",
     "@parcel/config-default": "^2.7.0",
     "gsap": "^3.11.1",
     "lil-gui": "^0.17.0",
-    "next": "^12.3.1",
     "three": "^0.144.0",
     "three-msdf-text": "github:leochocolat/three-msdf-text",
     "three-orbit-controls": "^82.1.0",
