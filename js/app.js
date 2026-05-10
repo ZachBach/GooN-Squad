@@ -14,17 +14,18 @@ import fnt from '../font/zookahs-msdf.json';
 import atlasURL from '../font/zookahs.png';
 
 
-const MEMBERS = [
-  { name: 'synistr_motives',  x: 'synistr_motives'  },
-  { name: 'STLfromHell67',    x: 'STLfromHell67'    },
-  { name: 'Reddshinobi',      x: 'Reddshinobi'      },
-  { name: 'riskyumbrella',    x: 'riskyumbrella'    },
-  { name: 'DAFFODILRAT',      x: 'DAFFODILRAT'      },
-  { name: 'fayze',            x: 'fayze'            },
-  { name: 'MATTAKAICEMAN',    x: 'MATTAKAICEMAN'    },
-  { name: 'QUBX',             x: 'QUBX'             },
-  { name: 'The Treemiester',  x: 'TheTreemiester'   },
-  { name: 'ZooKaH',           x: 'ZooKaH'           },
+const TEXT = [
+  'synistr_motives',
+  'STLfromHell67',
+  'Reddshinobi',
+  'riskyumbrella',
+  'DAFFODILRAT',
+  'fayze',
+  'MATTAKAICEMAN',
+  'QUBX',
+  'The Treemiester',
+  'ZooKaH',
+
 ].reverse();
 
 export default class Sketch {
@@ -84,16 +85,12 @@ export default class Sketch {
     this.gltf.setDRACOLoader(this.dracoloader);
 
     this.isPlaying = true;
-    this.textMeshes = [];
-    this.raycaster = new THREE.Raycaster();
-    this.mouse = new THREE.Vector2(-9999, -9999);
-
+    
     this.addObjects();
     this.addTexts();
     this.resize();
     this.render();
     this.setupResize();
-    this.setupInteraction();
     // this.settings();
   }
 
@@ -120,42 +117,6 @@ export default class Sketch {
     // pull camera back on portrait/narrow screens so text fits horizontally
     this.camera.position.z = aspect < 1 ? 2.5 / aspect : 2.5;
     this.camera.updateProjectionMatrix();
-  }
-
-  setupInteraction() {
-    const canvas = this.renderer.domElement;
-
-    canvas.addEventListener('mousemove', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      this.mouse.x = ((e.clientX - rect.left) / rect.width)  *  2 - 1;
-      this.mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
-      const hit = this._raycastText();
-      canvas.style.cursor = hit ? 'pointer' : 'default';
-    });
-
-    canvas.addEventListener('click', () => {
-      const hit = this._raycastText();
-      if (hit) window.open(`https://x.com/${hit.x}`, '_blank', 'noopener');
-    });
-
-    canvas.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      const t = e.changedTouches[0];
-      const rect = canvas.getBoundingClientRect();
-      this.mouse.x = ((t.clientX - rect.left) / rect.width)  *  2 - 1;
-      this.mouse.y = -((t.clientY - rect.top)  / rect.height) * 2 + 1;
-      const hit = this._raycastText();
-      if (hit) window.open(`https://x.com/${hit.x}`, '_blank', 'noopener');
-    }, { passive: false });
-  }
-
-  _raycastText() {
-    if (!this.textMeshes.length) return null;
-    this.raycaster.setFromCamera(this.mouse, this.camera);
-    const meshes = this.textMeshes.map(t => t.mesh);
-    const hits = this.raycaster.intersectObjects(meshes);
-    if (!hits.length) return null;
-    return this.textMeshes.find(t => t.mesh === hits[0].object) || null;
   }
 
   addLights() {
@@ -285,22 +246,23 @@ export default class Sketch {
         this.size = 0.2;
 
         this.material.uniforms.uMap.value = atlas;
-        MEMBERS.forEach((member, i) => {
+        TEXT.forEach((text, i) => { 
             const geometry = new MSDFTextGeometry({
-            text: member.name.toUpperCase(),
+            text: text.toUpperCase(),
             font: fnt,
         });
-
+      
+    
       this.material.uniforms.uMap.value = atlas;
-
+    
       const mesh = new THREE.Mesh(geometry, this.material);
 
       let s = 0.006;
       mesh.scale.set(s, -s, s);
       mesh.position.x = -0.9;
       mesh.position.y = this.size*i;
+      
 
-      this.textMeshes.push({ mesh, x: member.x });
 
       this.group.add(mesh);
       this.groupCopy.add(mesh.clone());
